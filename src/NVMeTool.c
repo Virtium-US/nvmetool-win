@@ -45,10 +45,12 @@ static void s_vPrintUsage(char* _strProgName)
     // cPtr holds the last occurrence of '\'
     printf("%s: Sample Utility tool for NVMe drive (version %s)\n\n", cPtr, strVersion);
     printf("Usage:\n");
-    printf("  > %s <physical-drive-no>\n\n", cPtr);
+    printf("  > %s <physical-drive-no> <namespace-id>\n\n", cPtr);
     printf("Argument:\n");
     printf("  <physical-drive-no>: physical number of drive to be accessed\n");
-    printf("    (you can be confirm it with \"Disk Management\" in Control Panel)\n\n");
+    printf("    (you can be confirm it with \"Disk Management\" in Control Panel)\n");
+    printf("  <namespace-id>: namespace number of drive attached\n");
+    printf("    (note: this field is optional, by default value is 0xFFFFFFFFh)\n\n");
 }
 
 int main(int _argc, char* _argv[])
@@ -57,7 +59,7 @@ int main(int _argc, char* _argv[])
     bool    bFinished = false;
     HANDLE  hDevice = NULL;
 
-    if (_argc != 2)
+    if (_argc < 2)
     {
         s_vPrintUsage(_argv[0]);
         return 0;
@@ -70,7 +72,7 @@ int main(int _argc, char* _argv[])
     // We need change UAC setting of this application, to access device with right of administrator
     // see also https://social.msdn.microsoft.com/Forums/windowsdesktop/en-US/ac055958-d438-4593-a2a4-6b130b563747/createfile-on-c-with-read-only-returns-quotaccess-deniedquot-on-win7-it-is-ok-on-xp
     hDevice = hIssueCreateFile((const char*)(_argv[1]));
-    if ( hDevice == INVALID_HANDLE_VALUE )
+    if (hDevice == INVALID_HANDLE_VALUE)
     {
         return iResult;
     }
@@ -87,7 +89,16 @@ int main(int _argc, char* _argv[])
     vPrintControllerBasicData();
 
     // retrieve controller's SMART data
-    iResult = iNVMeGetSMART(hDevice, false, NVME_NAMESPACE_ALL);
+    if (_argc >= 3)
+    {
+        int ns = strtol(_argv[2], NULL, 10);
+        iResult = iNVMeGetSMART(hDevice, false, ns);
+    }
+    else
+    {
+        iResult = iNVMeGetSMART(hDevice, false, NVME_NAMESPACE_ALL);
+    }
+
     if (iResult)
     {
         fprintf(stderr, "[E] Getting controller's SMART / Health information log page failed, stop.\n\n");
